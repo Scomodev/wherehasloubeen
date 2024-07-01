@@ -28,7 +28,7 @@ function initMap() {
 
 async function displayHeatmap(accessToken) {
     try {
-        const response = await fetch(`${STRAVA_API_URL}/athlete/activities?type=Run`, {
+        const response = await fetch(`${STRAVA_API_URL}/athlete/activities`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`
             }
@@ -42,7 +42,7 @@ async function displayHeatmap(accessToken) {
         let heatData = [];
 
         activities.forEach(activity => {
-            if (activity.map && activity.map.summary_polyline) {
+            if (activity.type === 'Run' && activity.map && activity.map.summary_polyline) {
                 const coords = decodePolyline(activity.map.summary_polyline);
                 heatData = heatData.concat(coords);
             }
