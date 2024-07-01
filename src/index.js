@@ -26,6 +26,15 @@ function initMap() {
     }
 }
 
+function getHeatmapSettings() {
+    const isMobile = window.innerWidth <= 800;
+    return {
+        radius: isMobile ? 15 : 25,
+        blur: isMobile ? 15 : 25,
+        maxZoom: isMobile ? 14 : 18,
+    };
+}
+
 async function displayHeatmap(accessToken) {
     try {
         const response = await fetch(`${STRAVA_API_URL}/athlete/activities`, {
@@ -48,6 +57,8 @@ async function displayHeatmap(accessToken) {
             }
         });
 
+        const heatmapSettings = getHeatmapSettings();
+
         if (map && heatData.length > 0) {
             map.eachLayer(layer => {
                 if (!layer._url) {
@@ -55,7 +66,7 @@ async function displayHeatmap(accessToken) {
                 }
             });
 
-            L.heatLayer(heatData, { radius: 25 }).addTo(map);
+            L.heatLayer(heatData, heatmapSettings).addTo(map);
         } else {
             console.warn('Map is not initialized or no data for heatmap.');
         }
