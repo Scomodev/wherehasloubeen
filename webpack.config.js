@@ -27,6 +27,10 @@ module.exports = {
       template: './src/index.html', // Path to your index.html file
       filename: 'index.html'       // Output filename in dist directory
     }),
-    new Dotenv()
+    new Dotenv({
+        path: './.env',  // Path to your .env file (if needed)
+        safe: true,      // Load only variables that are defined
+        systemvars: true  // Load system environment variables
+      })
   ]
 };
