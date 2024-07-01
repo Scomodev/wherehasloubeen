@@ -4,11 +4,14 @@ import 'leaflet.heat';
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
+const STRAVA_API_URL = 'https://www.strava.com/api/v3';
 
+// Function to handle Strava authentication
 document.getElementById('authButton').addEventListener('click', () => {
     window.location.href = `https://www.strava.com/oauth/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${REDIRECT_URI}&approval_prompt=force&scope=activity:read`;
 });
 
+// Function to extract URL parameter
 function getUrlParameter(name) {
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
@@ -16,10 +19,36 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
+// Check if code is available in URL (returned from Strava OAuth)
 const code = getUrlParameter('code');
 
-if (code) {
-    fetch('https://www.strava.com/oauth/token', {
+// Main function to handle token retrieval and heatmap display
+async function main() {
+    try {
+        let accessToken = localStorage.getItem('strava_access_token');
+
+        if (!accessToken && code) {
+            // Retrieve access token from Strava using code
+            accessToken = await fetchAccessToken(code);
+            localStorage.setItem('strava_access_token', accessToken);
+        }
+
+        if (!accessToken) {
+            displayStatus('Not authorized with Strava');
+            return;
+        }
+
+        displayStatus('Authorized with Strava');
+        await displayHeatmap(accessToken);
+    } catch (error) {
+        console.error('Error:', error);
+        displayStatus('Error: ' + error.message);
+    }
+}
+
+// Function to fetch access token from Strava API
+async function fetchAccessToken(code) {
+    const response = await fetch('https://www.strava.com/oauth/token', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -30,25 +59,22 @@ if (code) {
             code: code,
             grant_type: 'authorization_code'
         })
-    })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Access Token:', data.access_token);
-            localStorage.setItem('strava_access_token', data.access_token);
-            document.getElementById('status').innerText = 'Authorized with Strava';
-            displayHeatmap(data.access_token);
-        })
-        .catch(error => console.error('Error:', error));
-} else {
-    const savedToken = localStorage.getItem('strava_access_token');
-    if (savedToken) {
-        document.getElementById('status').innerText = 'Using saved Strava token';
-        displayHeatmap(savedToken);
-    } else {
-        document.getElementById('status').innerText = 'Not authorized with Strava';
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to retrieve access token from Strava');
     }
+
+    const data = await response.json();
+    return data.access_token;
 }
 
+// Function to display status message
+function displayStatus(message) {
+    document.getElementById('status').innerText = message;
+}
+
+// Function to decode polyline encoded by Strava
 function decodePolyline(encoded) {
     let points = [];
     let index = 0, len = encoded.length;
@@ -80,22 +106,27 @@ function decodePolyline(encoded) {
     return points;
 }
 
-// Initialize the map
-const map = L.map('map').setView([51.505, -0.09], 13); // Change to your desired location
+// Initialize Leaflet map
+const map = L.map('map').setView([51.505, -0.09], 13); // Adjust coordinates and zoom level
 
-// Load and display a tile layer on the map
+// Add OpenStreetMap tile layer
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18,
     attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-// Fetch and display heatmap
+// Function to fetch activities from Strava API and display heatmap
 async function displayHeatmap(accessToken) {
-    const response = await fetch('https://www.strava.com/api/v3/athlete/activities', {
+    const response = await fetch(`${STRAVA_API_URL}/athlete/activities`, {
         headers: {
-            'Authorization': 'Bearer ' + accessToken
+            'Authorization': `Bearer ${accessToken}`
         }
     });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch activities from Strava API');
+    }
+
     const activities = await response.json();
     let heatData = [];
 
@@ -108,3 +139,6 @@ async function displayHeatmap(accessToken) {
 
     L.heatLayer(heatData, { radius: 25 }).addTo(map);
 }
+
+// Call main function when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', main);
