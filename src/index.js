@@ -1,6 +1,11 @@
 import L from 'leaflet';
 import 'leaflet.heat';
 
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const REDIRECT_URI = process.env.REDIRECT_URI;
+const STRAVA_API_URL = 'https://www.strava.com/api/v3';
+
 let map = null; // Variable to hold the map instance
 
 // Function to initialize or reinitialize the map
