@@ -6,30 +6,29 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 const STRAVA_API_URL = 'https://www.strava.com/api/v3';
 
-let map = null; // Variable to hold the map instance
+let map = null;
+let mapInitialized = false;
 
-// Function to initialize Leaflet map
 function initMap() {
+    if (!mapInitialized) {
+        if (map) {
+            map.remove();
+        }
 
-    if (map) {
-        map.invalidateSize();
-        map.off();
-        map.remove(); // Remove existing map instance if it exists
+        map = L.map('map').setView([51.505, -0.09], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        mapInitialized = true;
     }
-
-    map = L.map('map').setView([51.505, -0.09], 13); // Default coordinates and zoom level
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
 }
 
-// Function to display heatmap on the map
 async function displayHeatmap(accessToken) {
     try {
-        const response = await fetch(`${STRAVA_API_URL}/athlete/activities`, {
+        const response = await fetch(`${STRAVA_API_URL}/athlete/activities?type=Run`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`
             }
@@ -50,9 +49,8 @@ async function displayHeatmap(accessToken) {
         });
 
         if (map && heatData.length > 0) {
-            // Clear existing layers if any
             map.eachLayer(layer => {
-                if (!layer._url) { // Check if layer is not a tile layer
+                if (!layer._url) {
                     map.removeLayer(layer);
                 }
             });
@@ -66,7 +64,6 @@ async function displayHeatmap(accessToken) {
     }
 }
 
-// Function to decode polyline encoded by Strava
 function decodePolyline(encoded) {
     let points = [];
     let index = 0, len = encoded.length;
@@ -98,37 +95,49 @@ function decodePolyline(encoded) {
     return points;
 }
 
-// Function to handle Strava authentication
 document.getElementById('authButton').addEventListener('click', () => {
-    window.location.href = `https://www.strava.com/oauth/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${REDIRECT_URI}&approval_prompt=force&scope=activity:read`;
+    window.location.href = `https://www.strava.com/oauth/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${REDIRECT_URI}&approval_prompt=force&scope=activity:read,activity:read_all`;
 });
 
-// Main function to initialize map and fetch/display heatmap
 async function main() {
     try {
         let accessToken = localStorage.getItem('strava_access_token');
+        let refreshToken = localStorage.getItem('strava_refresh_token');
 
-        // Check if access token is not available and code is in URL
         const code = getUrlParameter('code');
         if (!accessToken && code) {
-            accessToken = await fetchAccessToken(code);
+            const tokens = await fetchAccessToken(code);
+            accessToken = tokens.access_token;
+            refreshToken = tokens.refresh_token;
             localStorage.setItem('strava_access_token', accessToken);
+            localStorage.setItem('strava_refresh_token', refreshToken);
         }
 
-        // Check if access token is still not available
-        if (!accessToken) {
+        if (accessToken) {
+            initMap();
+            try {
+                await displayHeatmap(accessToken);
+            } catch (error) {
+                if (error.message.includes('401')) {
+                    console.warn('Access token expired, refreshing...');
+                    const tokens = await refreshAccessToken(refreshToken);
+                    accessToken = tokens.access_token;
+                    refreshToken = tokens.refresh_token;
+                    localStorage.setItem('strava_access_token', accessToken);
+                    localStorage.setItem('strava_refresh_token', refreshToken);
+                    await displayHeatmap(accessToken);
+                } else {
+                    throw error;
+                }
+            }
+        } else {
             console.warn('Access token not available.');
-            return;
         }
-
-        initMap(); // Initialize map if not already initialized
-        await displayHeatmap(accessToken);
     } catch (error) {
         console.error('Error:', error);
     }
 }
 
-// Function to extract URL parameter
 function getUrlParameter(name) {
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
@@ -136,7 +145,6 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
-// Function to fetch access token from Strava API
 async function fetchAccessToken(code) {
     const response = await fetch('https://www.strava.com/oauth/token', {
         method: 'POST',
@@ -152,12 +160,31 @@ async function fetchAccessToken(code) {
     });
 
     if (!response.ok) {
-        throw new Error('Failed to retrieve access token from Strava');
+        throw new Error('Failed to fetch access token');
     }
 
-    const data = await response.json();
-    return data.access_token;
+    return await response.json();
 }
 
-// Call main function when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', main);
+async function refreshAccessToken(refreshToken) {
+    const response = await fetch('https://www.strava.com/oauth/token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token'
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to refresh access token');
+    }
+
+    return await response.json();
+}
+
+main();
