@@ -7,27 +7,23 @@ const REDIRECT_URI = process.env.REDIRECT_URI;
 const STRAVA_API_URL = 'https://www.strava.com/api/v3';
 
 let map = null; // Variable to hold the map instance
-let mapInitialized = false; // Flag to track if map is initialized
 
 // Function to initialize Leaflet map
 function initMap() {
-    if (!mapInitialized) {
-        if (map) {
-            mapInitialized = false;
-            map = map.invalidateSize();
-            map = map.off();
-            map = map.remove(); // Remove existing map instance if it exists
-        }
 
-        map = L.map('map').setView([51.505, -0.09], 13); // Default coordinates and zoom level
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 18,
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-
-        mapInitialized = true;
+    if (map) {
+        map.invalidateSize();
+        map.off();
+        map.remove(); // Remove existing map instance if it exists
     }
+
+    map = L.map('map').setView([51.505, -0.09], 13); // Default coordinates and zoom level
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
 }
 
 // Function to display heatmap on the map
