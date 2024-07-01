@@ -13,6 +13,8 @@ let mapInitialized = false; // Flag to track if map is initialized
 function initMap() {
     if (!mapInitialized) {
         if (map) {
+            mapInitialized = false;
+            map = map.invalidateSize();
             map = map.off();
             map = map.remove(); // Remove existing map instance if it exists
         }
