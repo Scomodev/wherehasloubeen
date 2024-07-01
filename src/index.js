@@ -53,6 +53,38 @@ async function displayHeatmap(accessToken) {
     }
 }
 
+// Function to decode polyline encoded by Strava
+function decodePolyline(encoded) {
+    let points = [];
+    let index = 0, len = encoded.length;
+    let lat = 0, lng = 0;
+
+    while (index < len) {
+        let b, shift = 0, result = 0;
+        do {
+            b = encoded.charCodeAt(index++) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+        lat += dlat;
+
+        shift = 0;
+        result = 0;
+        do {
+            b = encoded.charCodeAt(index++) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+        lng += dlng;
+
+        points.push([lat / 1e5, lng / 1e5]);
+    }
+
+    return points;
+}
+
 // Function to handle Strava authentication
 document.getElementById('authButton').addEventListener('click', () => {
     window.location.href = `https://www.strava.com/oauth/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${REDIRECT_URI}&approval_prompt=force&scope=activity:read`;
@@ -63,11 +95,14 @@ async function main() {
     try {
         let accessToken = localStorage.getItem('strava_access_token');
 
+        // Check if access token is not available and code is in URL
+        const code = getUrlParameter('code');
         if (!accessToken && code) {
             accessToken = await fetchAccessToken(code);
             localStorage.setItem('strava_access_token', accessToken);
         }
 
+        // Check if access token is still not available
         if (!accessToken) {
             console.warn('Access token not available.');
             return;
@@ -78,6 +113,37 @@ async function main() {
     } catch (error) {
         console.error('Error:', error);
     }
+}
+
+// Function to extract URL parameter
+function getUrlParameter(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    const results = regex.exec(window.location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
+
+// Function to fetch access token from Strava API
+async function fetchAccessToken(code) {
+    const response = await fetch('https://www.strava.com/oauth/token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            code: code,
+            grant_type: 'authorization_code'
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to retrieve access token from Strava');
+    }
+
+    const data = await response.json();
+    return data.access_token;
 }
 
 // Call main function when the DOM is fully loaded
