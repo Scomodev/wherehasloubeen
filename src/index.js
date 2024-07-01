@@ -13,7 +13,8 @@ let mapInitialized = false; // Flag to track if map is initialized
 function initMap() {
     if (!mapInitialized) {
         if (map) {
-            map.remove(); // Remove existing map instance if it exists
+            map = map.off();
+            map = map.remove(); // Remove existing map instance if it exists
         }
 
         map = L.map('map').setView([51.505, -0.09], 13); // Default coordinates and zoom level
