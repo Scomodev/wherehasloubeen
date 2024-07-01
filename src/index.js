@@ -74,6 +74,49 @@ function displayStatus(message) {
     document.getElementById('status').innerText = message;
 }
 
+// Initialize Leaflet map
+const map = L.map('map').setView([51.505, -0.09], 13); // Adjust coordinates and zoom level
+
+// Add OpenStreetMap tile layer
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+// Function to fetch activities from Strava API and display heatmap
+async function displayHeatmap(accessToken) {
+    try {
+        const response = await fetch(`${STRAVA_API_URL}/athlete/activities`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch activities from Strava API');
+        }
+
+        const activities = await response.json();
+        let heatData = [];
+
+        activities.forEach(activity => {
+            if (activity.map && activity.map.summary_polyline) {
+                const coords = decodePolyline(activity.map.summary_polyline);
+                heatData = heatData.concat(coords);
+            }
+        });
+
+        if (heatData.length > 0) {
+            L.heatLayer(heatData, { radius: 25 }).addTo(map);
+        } else {
+            console.warn('No heat data available to display.');
+        }
+    } catch (error) {
+        console.error('Error displaying heatmap:', error);
+        displayStatus('Error displaying heatmap: ' + error.message);
+    }
+}
+
 // Function to decode polyline encoded by Strava
 function decodePolyline(encoded) {
     let points = [];
@@ -104,40 +147,6 @@ function decodePolyline(encoded) {
     }
 
     return points;
-}
-
-// Initialize Leaflet map
-const map = L.map('map').setView([51.505, -0.09], 13); // Adjust coordinates and zoom level
-
-// Add OpenStreetMap tile layer
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18,
-    attribution: '© OpenStreetMap contributors'
-}).addTo(map);
-
-// Function to fetch activities from Strava API and display heatmap
-async function displayHeatmap(accessToken) {
-    const response = await fetch(`${STRAVA_API_URL}/athlete/activities`, {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`
-        }
-    });
-
-    if (!response.ok) {
-        throw new Error('Failed to fetch activities from Strava API');
-    }
-
-    const activities = await response.json();
-    let heatData = [];
-
-    activities.forEach(activity => {
-        if (activity.map && activity.map.summary_polyline) {
-            const coords = decodePolyline(activity.map.summary_polyline);
-            heatData = heatData.concat(coords);
-        }
-    });
-
-    L.heatLayer(heatData, { radius: 25 }).addTo(map);
 }
 
 // Call main function when the DOM is fully loaded
