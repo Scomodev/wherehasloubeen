@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strava Heatmap</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 100vh;
+        }
+
+        .strava-button {
+            background: #fc5200;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        .strava-button:hover {
+            background: #e04800;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="status"></div>
+    <button id="authButton" class="strava-button">Authorize with Strava</button>
+    <div id="map"></div>
+    <script src="../dist/bundle.js"></script>
+</body>
+
+</html>

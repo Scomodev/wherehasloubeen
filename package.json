@@ -1,0 +1,14 @@
+{
+  "name": "wherehasloubeen",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "webpack"
+  },
+  "dependencies": {
+    "dotenv-webpack": "^7.0.2",
+    "leaflet": "^1.7.1",
+    "leaflet.heat": "^0.2.0",
+    "webpack": "^5.44.0",
+    "webpack-cli": "^4.7.2"
+  }
+}
