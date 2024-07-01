@@ -7,16 +7,23 @@ const REDIRECT_URI = process.env.REDIRECT_URI;
 const STRAVA_API_URL = 'https://www.strava.com/api/v3';
 
 let map = null; // Variable to hold the map instance
+let mapInitialized = false; // Flag to track if map is initialized
 
-// Function to initialize or reinitialize the map
+// Function to initialize Leaflet map
 function initMap() {
-    if (!map) {
-        map = L.map('map').setView([51.505, -0.09], 13); // Adjust coordinates and zoom level
+    if (!mapInitialized) {
+        if (map) {
+            map.remove(); // Remove existing map instance if it exists
+        }
+
+        map = L.map('map').setView([51.505, -0.09], 13); // Default coordinates and zoom level
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
+
+        mapInitialized = true;
     }
 }
 
@@ -43,10 +50,17 @@ async function displayHeatmap(accessToken) {
             }
         });
 
-        if (map) {
+        if (map && heatData.length > 0) {
+            // Clear existing layers if any
+            map.eachLayer(layer => {
+                if (!layer._url) { // Check if layer is not a tile layer
+                    map.removeLayer(layer);
+                }
+            });
+
             L.heatLayer(heatData, { radius: 25 }).addTo(map);
         } else {
-            console.warn('Map is not initialized.');
+            console.warn('Map is not initialized or no data for heatmap.');
         }
     } catch (error) {
         console.error('Error displaying heatmap:', error);
